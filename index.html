@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Рандомайзер мест</title>
+    <meta name="description" content="Интерактивный рандомайзер мест с импортом XLS/XLSX и экспортом видео MP4 (25 к/с) и PNG-секвенций." />
+    <meta property="og:title" content="Рандомайзер мест" />
+    <meta property="og:description" content="Интерактивный рандомайзер мест с импортом XLS/XLSX и экспортом видео MP4 (25 к/с) и PNG-секвенций." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./src/styles/main.css" />
+  </head>
+  <body>
+    <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+
+    <header class="topbar">
+      <a href="#stage" class="brand" id="brand-home">Рандомайзер мест</a>
+
+      <nav class="topnav" role="tablist" aria-label="Разделы приложения">
+        <button type="button" class="nav-tab is-active" role="tab" aria-selected="true" data-tab-target="stage">
+          Сцена розыгрыша
+        </button>
+        <button type="button" class="nav-tab" role="tab" aria-selected="false" data-tab-target="pool">
+          Пул и импорт XLS
+        </button>
+        <button type="button" class="nav-tab" role="tab" aria-selected="false" data-tab-target="export">
+          Экспорт PNG и MP4
+        </button>
+      </nav>
+
+      <div class="topbar-actions">
+        <button type="button" class="btn-primary" id="btn-fullscreen">На весь экран</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <!-- ВКЛАДКА 1: СЦЕНА РОЗЫГРЫША -->
+      <section class="tab-panel" data-tab-panel="stage">
+        <div class="stage-layout">
+          <div class="stage-main">
+            <div
+              class="stage-card"
+              id="stage-card"
+              role="button"
+              tabindex="0"
+              aria-label="Запустить или остановить выбор места"
+            >
+              <div class="stage-sector-strip">
+                <span class="stage-sector-bar" id="stage-sector-bar"></span>
+                <span class="stage-sector-label" id="stage-sector-label">Выберите место</span>
+              </div>
+
+              <div class="stage-numbers">
+                <div class="stage-row" id="stage-row-text">—</div>
+                <div class="stage-seat" id="stage-seat-text">Готовы</div>
+              </div>
+
+              <p class="stage-hint" id="stage-hint">
+                Нажмите на экран или клавишу Пробел / Вправо / Enter
+              </p>
+            </div>
+
+            <div class="stage-controls">
+              <div class="stage-controls-left">
+                <button type="button" class="btn-accent" id="btn-toggle-spin">Запустить розыгрыш</button>
+                <button type="button" class="btn-secondary" id="btn-reset-drawn">Сбросить историю</button>
+              </div>
+              <div class="stage-controls-right">
+                <label class="toggle-label">
+                  <input type="checkbox" id="chk-exclude-drawn" checked />
+                  <span>Убирать выпавшие места</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" id="chk-auto-stop" />
+                  <span>Автостоп (3 сек)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="hall-section">
+              <div class="section-head">
+                <h2 class="section-title">Схема зала</h2>
+                <span class="section-meta" id="stage-pool-stats">Загрузка...</span>
+              </div>
+              <div class="hall-map" id="hall-map"></div>
+            </div>
+          </div>
+
+          <aside class="stage-sidebar">
+            <div class="section-head">
+              <h2 class="section-title">Выпавшие места</h2>
+            </div>
+            <p class="empty-note" id="winners-empty">
+              Пока ни одно место не разыграно. Нажмите на сцену или клавишу Пробел для старта.
+            </p>
+            <ul class="winners-list" id="winners-list"></ul>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ВКЛАДКА 2: ПУЛ И ИМПОРТ XLS / XLSX -->
+      <section class="tab-panel" data-tab-panel="pool" hidden>
+        <div class="pool-layout">
+          <div class="pool-import-panel">
+            <div class="section-head">
+              <h2 class="section-title">Импорт таблицы .XLS / .XLSX / .CSV</h2>
+              <div class="head-actions-row">
+                <button type="button" class="btn-secondary" id="btn-download-sample">Скачать пример .xlsx</button>
+                <button type="button" class="btn-accent" id="btn-go-export">К экспорту PNG →</button>
+              </div>
+            </div>
+
+            <div class="drop-zone" id="drop-zone">
+              <p class="drop-title">Перетащите файл .xls, .xlsx или .csv сюда</p>
+              <p class="drop-desc">
+                Поддерживаются колонки «Ряд» и «Место» (или объединённые строки вида «Ряд 5, Место 12»). Разбор выполняется полностью в браузере.
+              </p>
+              <div class="drop-actions">
+                <select id="import-mode" class="select-input" aria-label="Режим импорта">
+                  <option value="replace">Заменить пул местами из файла (оставить только их)</option>
+                  <option value="intersect">Пересечь со схемой зала (оставить совпадения)</option>
+                  <option value="exclude">Исключить места из файла (вычесть занятые)</option>
+                </select>
+                <button type="button" class="btn-accent" id="btn-pick-file">Выбрать файл</button>
+                <input
+                  type="file"
+                  id="file-import-input"
+                  accept=".xlsx,.xls,.csv,.txt"
+                  hidden
+                />
+              </div>
+            </div>
+
+            <div class="feedback-banner" id="import-feedback" hidden></div>
+
+            <div class="pool-tools">
+              <div class="tool-group">
+                <span class="tool-label">Сектора зала</span>
+                <div class="sector-filters" id="sector-filters"></div>
+              </div>
+
+              <div class="tool-row">
+                <div class="trim-box">
+                  <label for="trim-count-input" class="tool-label">Сократить пул до числа мест:</label>
+                  <div class="trim-controls">
+                    <input type="number" id="trim-count-input" class="text-input input-narrow" min="1" value="100" />
+                    <button type="button" class="btn-secondary" id="btn-trim-random">Оставить случайные N</button>
+                  </div>
+                </div>
+                <div class="reset-box">
+                  <button type="button" class="btn-secondary" id="btn-activate-all">Включить все в списке</button>
+                  <button type="button" class="btn-secondary" id="btn-reset-default">Сбросить на зал (430 мест)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pool-table-panel">
+            <div class="section-head">
+              <div>
+                <h2 class="section-title">Список мест в пуле</h2>
+                <p class="section-meta" id="pool-count-summary">Активно: 430</p>
+              </div>
+              <input
+                type="search"
+                id="pool-search-input"
+                class="text-input"
+                placeholder="Поиск: ряд, место или сектор..."
+                aria-label="Поиск мест"
+              />
+            </div>
+
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Сектор</th>
+                    <th>Ряд</th>
+                    <th>Место</th>
+                    <th>Статус / Примечание</th>
+                    <th class="col-action">Участие</th>
+                  </tr>
+                </thead>
+                <tbody id="pool-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ВКЛАДКА 3: ЭКСПОРТ PNG-СЕКВЕНЦИИ И MP4 -->
+      <section class="tab-panel" data-tab-panel="export" hidden>
+        <div class="export-layout">
+          <div class="export-controls-panel">
+            <h2 class="section-title">Рендер PNG-секвенции на альфа-канале (25 к/с) и MP4</h2>
+            <p class="export-lead">
+              В каждом кадре (25 к/с) выводится одно случайное место из активного пула без повторов. В режиме альфа-оверлея экспортируются только цифры места и подпись «ряд» на прозрачном фоне для наложения поверх видео.
+            </p>
+
+            <div class="export-metrics">
+              <div class="metric-item">
+                <span class="metric-label">Мест в пуле</span>
+                <span class="metric-value" id="export-stat-seats">430</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Частота</span>
+                <span class="metric-value">25 к/с</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Всего кадров</span>
+                <span class="metric-value" id="export-stat-frames">430</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Длительность</span>
+                <span class="metric-value" id="export-stat-duration">17.20 сек</span>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-field">
+                <label for="export-resolution">Формат и разрешение кадра</label>
+                <select id="export-resolution" class="select-input">
+                  <option value="1152x1920-alpha">1152 × 1920 · Альфа PNG-оверлей (плашка 765×500 @ 200, 900)</option>
+                  <option value="765x500-alpha">765 × 500 · Альфа PNG (только внутренняя плашка)</option>
+                  <option value="1920x1080">1920 × 1080 · Full HD (полный тёмный экран)</option>
+                  <option value="1280x720">1280 × 720 · HD (полный тёмный экран)</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="export-ending-mode">Режим последовательности</label>
+                <select id="export-ending-mode" class="select-input">
+                  <option value="no-winner">Только перебор (без победителя, 1 место = 1 кадр)</option>
+                  <option value="with-winner">С финальным победителем (+3 сек удержания в конце)</option>
+                </select>
+              </div>
+
+              <!-- Настройки альфа-оверлея -->
+              <div id="alpha-layout-controls" class="alpha-controls-box">
+                <div class="alpha-coords-grid" id="alpha-coords-grid">
+                  <div class="form-field">
+                    <label for="alpha-box-x">Отступ слева (px)</label>
+                    <input type="number" id="alpha-box-x" class="text-input mono-input" value="200" min="0" max="1152" />
+                  </div>
+                  <div class="form-field">
+                    <label for="alpha-box-y">Отступ сверху (px)</label>
+                    <input type="number" id="alpha-box-y" class="text-input mono-input" value="900" min="0" max="1920" />
+                  </div>
+                  <div class="form-field">
+                    <label for="alpha-box-w">Ширина плашки (px)</label>
+                    <input type="number" id="alpha-box-w" class="text-input mono-input" value="765" min="100" max="1152" />
+                  </div>
+                  <div class="form-field">
+                    <label for="alpha-box-h">Высота плашки (px)</label>
+                    <input type="number" id="alpha-box-h" class="text-input mono-input" value="500" min="100" max="1920" />
+                  </div>
+                </div>
+
+                <div class="alpha-style-row">
+                  <div class="form-field">
+                    <label for="alpha-row-case">Подпись ряда</label>
+                    <select id="alpha-row-case" class="select-input">
+                      <option value="lower">ряд 1 (строчными, как в макете)</option>
+                      <option value="title">Ряд 1 (с заглавной буквы)</option>
+                    </select>
+                  </div>
+                  <div class="form-field">
+                    <label for="alpha-text-theme">Цвет цифр</label>
+                    <select id="alpha-text-theme" class="select-input">
+                      <option value="dark">Чёрный / графит (для светлой плашки)</option>
+                      <option value="light">Белый / светло-серый (для тёмной плашки)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="alpha-preview-row">
+                  <div class="form-field">
+                    <label for="alpha-preview-bg">Подложка в предпросмотре (не экспортируется)</label>
+                    <select id="alpha-preview-bg" class="select-input">
+                      <option value="reference">Макет видео (1152×1920 с разметкой)</option>
+                      <option value="checker">Прозрачный фон (шахматка)</option>
+                    </select>
+                  </div>
+                  <label class="toggle-label" style="align-self: flex-end; padding-bottom: 9px;">
+                    <input type="checkbox" id="alpha-show-guide" checked />
+                    <span>Рамка 765×500 в превью</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Настройки классического 16:9 экрана -->
+              <div id="classic-layout-controls" hidden>
+                <div class="form-field">
+                  <label for="export-title-input">Заголовок на кадре</label>
+                  <input type="text" id="export-title-input" class="text-input" value="Розыгрыш мест" maxlength="48" />
+                </div>
+
+                <div class="form-checks">
+                  <label class="toggle-label">
+                    <input type="checkbox" id="export-show-sector" checked />
+                    <span>Показывать сектор внизу кадра</span>
+                  </label>
+                  <label class="toggle-label">
+                    <input type="checkbox" id="export-show-counter" />
+                    <span>Показывать номер кадра (0001 / 0430)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="export-actions">
+              <button type="button" class="btn-secondary" id="btn-reshuffle-export">Перемешать порядок</button>
+              <button type="button" class="btn-accent" id="btn-export-png">Скачать PNG-секвенцию (альфа, .zip)</button>
+              <button type="button" class="btn-primary" id="btn-export-mp4">Скачать MP4 (25 к/с)</button>
+              <button type="button" class="btn-stop" id="btn-cancel-export" hidden>Отменить</button>
+            </div>
+
+            <p class="export-alpha-note" id="export-alpha-note">
+              В альфа-режиме PNG-секвенция сохраняется с прозрачным фоном (RGBA 32-bit). Формат MP4 (H.264) не поддерживает альфа-канал и рендерится на белом фоне.
+            </p>
+
+            <div class="progress-wrap" id="export-progress-wrap" hidden>
+              <div class="progress-track">
+                <div class="progress-bar" id="export-progress-bar"></div>
+              </div>
+              <p class="progress-text" id="export-progress-text">Подготовка...</p>
+            </div>
+
+            <div class="feedback-banner" id="export-notice" hidden></div>
+          </div>
+
+          <div class="export-preview-panel">
+            <div class="section-head">
+              <h2 class="section-title">Предпросмотр кадра</h2>
+              <span class="section-meta" id="export-preview-dims">1152 × 1920 · 25 к/с</span>
+            </div>
+            <div class="preview-canvas-stage" id="preview-canvas-stage">
+              <canvas id="export-preview-canvas" width="1152" height="1920" class="preview-canvas is-portrait"></canvas>
+            </div>
+            <div class="scrubber-wrap">
+              <input type="range" id="export-scrubber" min="0" max="429" value="0" class="scrubber-range" aria-label="Выбор кадра предпросмотра" />
+              <div class="scrubber-label" id="export-scrubber-label">Кадр 1 из 430</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
